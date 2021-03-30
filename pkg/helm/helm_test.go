@@ -69,6 +69,19 @@ func TestInvalidChart(t *testing.T) {
 	assert.Contains(t, err.Error(), "could not find chart entry")
 }
 
+func TestMissingRepository(t *testing.T) {
+	fs, err := createFs(missingRepositoryTerraform)
+	assert.Nil(t, err)
+
+	results, err := Update(fs, "/tmp/terraform/")
+	assert.Nil(t, err)
+	assert.Empty(t, results, "results list should be empty")
+
+	d, err := readFs(fs)
+	assert.Nil(t, err)
+	assert.Equal(t, missingRepositoryTerraform, d)
+}
+
 const basicTerraform = `
 resource "helm_release" "aad_pod_identity" {
   repository = "https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts"
@@ -92,5 +105,15 @@ resource "helm_release" "aad_pod_identity" {
   chart      = "foobar"
   name       = "aad-pod-identity"
   version    = "2.1.0"
+}
+`
+
+const missingRepositoryTerraform = `
+resource "helm_release" "external_dns_extras" {
+  depends_on = [helm_release.external_dns]
+
+  chart     = "${path.module}/charts/external-dns-extras"
+  name      = "external-dns-extras"
+  namespace = kubernetes_namespace.this.metadata[0].name
 }
 `

@@ -2,6 +2,7 @@ package helm
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -64,9 +65,16 @@ func Update(fs afero.Fs, path string) ([]update.Result, error) {
 			}
 
 			// Parse the fields and get the latest version
-			attr := block.Body().Attributes()
-			chart := cleanString(string(attr["chart"].Expr().BuildTokens(nil).Bytes()))
-			repository := cleanString(string(attr["repository"].Expr().BuildTokens(nil).Bytes()))
+			attrs := block.Body().Attributes()
+			chart, err := attributeString(attrs, "chart")
+			if err != nil {
+				return nil, err
+			}
+			repository, err := attributeString(attrs, "repository")
+			if err != nil {
+				// skip if the repository is not set
+				continue
+			}
 			latestVersion, err := getLatestVersion(repository, chart)
 			if err != nil {
 				return nil, err
@@ -96,8 +104,14 @@ func Update(fs afero.Fs, path string) ([]update.Result, error) {
 	return results, nil
 }
 
-func cleanString(s string) string {
+func attributeString(attrs map[string]*hclwrite.Attribute, key string) (string, error) {
+	attr, ok := attrs[key]
+	if !ok {
+		return "", fmt.Errorf("could not get attribute for key %q", key)
+	}
+
+	s := string(attr.Expr().BuildTokens(nil).Bytes())
 	s = strings.Trim(s, " \"")
 	s = strings.Trim(s, "\"")
-	return s
+	return s, nil
 }
