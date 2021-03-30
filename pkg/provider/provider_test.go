@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBasic(t *testing.T) {
+func TestProviderBasic(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
 	assert.Nil(t, err)
@@ -21,8 +21,12 @@ func TestBasic(t *testing.T) {
 	err = f.Close()
 	assert.Nil(t, err)
 
-	err = Update(fs, "/tmp/terraform/")
+	results, err := Update(fs, "/tmp/terraform/")
 	assert.Nil(t, err)
+
+	assert.NotEmpty(t, results, "result list can not be empty")
+	assert.Equal(t, "hashicorp/azurerm", results[0].Name)
+	assert.Equal(t, "2.53.0", results[0].Version)
 
 	file, err := fs.Open("/tmp/terraform/main.tf")
 	assert.Nil(t, err)
@@ -51,7 +55,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "2.46.1"
+      version = "2.53.0"
     }
   }
 }

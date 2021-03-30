@@ -1,6 +1,8 @@
 package helm
 
 import (
+	"fmt"
+
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
 )
@@ -29,5 +31,15 @@ func getLatestVersion(URL, chart string) (string, error) {
 		return "", err
 	}
 	indexFile.SortEntries()
-	return indexFile.Entries[chart][0].Version, nil
+
+	chartVersions, ok := indexFile.Entries[chart]
+	if !ok {
+		return "", fmt.Errorf("could not find chart entry %q", chart)
+	}
+
+	if len(chartVersions) == 0 {
+		return "", fmt.Errorf("chart %q does not have any versions", chart)
+	}
+
+	return chartVersions[0].Version, nil
 }
