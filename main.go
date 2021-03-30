@@ -10,6 +10,7 @@ import (
 
 	"github.com/xenitab/tf-provider-latest/pkg/helm"
 	"github.com/xenitab/tf-provider-latest/pkg/provider"
+	"github.com/xenitab/tf-provider-latest/pkg/update"
 )
 
 func main() {
@@ -24,14 +25,26 @@ func main() {
 	log.SetOutput(ioutil.Discard)
 
 	fs := afero.NewOsFs()
-	err := provider.Update(fs, string(path))
+	providerResults, err := provider.Update(fs, string(path))
 	if err != nil {
 		fmt.Printf("failed updating provider versions: %q\n", err)
 		os.Exit(1)
 	}
-	err = helm.Update(fs, string(path))
+	providerMd, err := update.ToMarkdown("Provider", providerResults)
+	if err != nil {
+		fmt.Printf("failed rendering provider markdown: %q\n", err)
+		os.Exit(1)
+	}
+	helmResults, err := helm.Update(fs, string(path))
 	if err != nil {
 		fmt.Printf("failed updating helm versions: %q\n", err)
 		os.Exit(1)
 	}
+	helmMd, err := update.ToMarkdown("Helm", helmResults)
+	if err != nil {
+		fmt.Printf("failed rendering provider markdown: %q\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s\n\n%s\n", providerMd, helmMd)
 }

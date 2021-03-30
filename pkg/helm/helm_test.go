@@ -48,8 +48,12 @@ func TestBasic(t *testing.T) {
 	fs, err := createFs(basicTerraform)
 	assert.Nil(t, err)
 
-	err = Update(fs, "/tmp/terraform/")
+	results, err := Update(fs, "/tmp/terraform/")
 	assert.Nil(t, err)
+
+	assert.NotEmpty(t, results, "result list can not be empty")
+	assert.Equal(t, "aad-pod-identity", results[0].Name)
+	assert.Equal(t, "3.0.3", results[0].Version)
 
 	d, err := readFs(fs)
 	assert.Nil(t, err)
@@ -60,7 +64,7 @@ func TestInvalidChart(t *testing.T) {
 	fs, err := createFs(invalidChartTerraform)
 	assert.Nil(t, err)
 
-	err = Update(fs, "/tmp/terraform/")
+	_, err = Update(fs, "/tmp/terraform/")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "could not find chart entry")
 }
