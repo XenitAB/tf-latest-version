@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBasic(t *testing.T) {
+func TestProviderBasic(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
 	assert.Nil(t, err)
@@ -51,7 +51,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "2.46.1"
+      version = "2.53.0"
     }
   }
 }
