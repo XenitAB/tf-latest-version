@@ -25,22 +25,22 @@ func main() {
 	log.SetOutput(ioutil.Discard)
 
 	fs := afero.NewOsFs()
-	providerResults, err := provider.Update(fs, string(path))
+	providerResults, err := provider.Update(fs, provider.NewHashicorpRegistry(), string(path))
 	if err != nil {
 		fmt.Printf("failed updating provider versions: %q\n", err)
 		os.Exit(1)
 	}
-	providerMd, err := update.ToMarkdown("Provider", providerResults)
+	providerMd, err := update.ToMarkdown("Provider", update.UniqueResults(providerResults))
 	if err != nil {
 		fmt.Printf("failed rendering provider markdown: %q\n", err)
 		os.Exit(1)
 	}
-	helmResults, err := helm.Update(fs, string(path))
+	helmResults, err := helm.Update(fs, helm.NewHelmRepository(), string(path))
 	if err != nil {
 		fmt.Printf("failed updating helm versions: %q\n", err)
 		os.Exit(1)
 	}
-	helmMd, err := update.ToMarkdown("Helm", helmResults)
+	helmMd, err := update.ToMarkdown("Helm", update.UniqueResults(helmResults))
 	if err != nil {
 		fmt.Printf("failed rendering provider markdown: %q\n", err)
 		os.Exit(1)

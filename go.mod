@@ -3,13 +3,14 @@ module github.com/xenitab/tf-provider-latest
 go 1.16
 
 require (
-	github.com/hashicorp/hcl/v2 v2.8.2
+	github.com/Masterminds/semver/v3 v3.1.1
+	github.com/hashicorp/hcl/v2 v2.9.1
 	github.com/hashicorp/terraform-config-inspect v0.0.0-20210209133302-4fd17a0faac2
 	github.com/minamijoyo/tfupdate v0.4.3
-	github.com/spf13/afero v1.2.2
+	github.com/spf13/afero v1.6.0
 	github.com/stretchr/testify v1.7.0
-	github.com/zclconf/go-cty v1.2.0
-	helm.sh/helm/v3 v3.5.2
+	github.com/zclconf/go-cty v1.8.0
+	helm.sh/helm/v3 v3.5.3
 	k8s.io/client-go v11.0.0+incompatible // indirect
 )
 
