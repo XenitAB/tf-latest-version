@@ -68,9 +68,18 @@ func Update(fs afero.Fs, r Repository, path string) ([]update.Result, error) {
 				// skip if the repository is not set
 				continue
 			}
+			version, err := attributeString(attrs, "version")
+			if err != nil {
+				// ok if version is not set
+				version = ""
+			}
 			latestVersion, err := r.getLatestVersion(repository, chart)
 			if err != nil {
 				return err
+			}
+			// skip if version is already latest
+			if version == latestVersion {
+				continue
 			}
 
 			// Update the block with the latest version

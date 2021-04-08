@@ -34,6 +34,12 @@ func Update(fs afero.Fs, r Registry, path string) ([]update.Result, error) {
 			if err != nil {
 				return err
 			}
+
+			// Skip if there is no update to do
+			if len(p.VersionConstraints) == 1 && p.VersionConstraints[0] == latestVersion {
+				continue
+			}
+
 			o, err := tfupdate.NewOption("provider", k, latestVersion, false, []string{})
 			if err != nil {
 				return err
