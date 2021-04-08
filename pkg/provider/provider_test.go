@@ -6,33 +6,65 @@ import (
 	"testing"
 
 	"github.com/spf13/afero"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProviderBasic(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	f, err := fs.Create("/tmp/terraform/main.tf")
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	n, err := f.WriteString(basicTerraform)
-	assert.Nil(t, err)
-	assert.Equal(t, len(basicTerraform), n)
+	require.Nil(t, err)
+	require.Equal(t, len(basicTerraform), n)
 	err = f.Close()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
-	results, err := Update(fs, "/tmp/terraform/")
-	assert.Nil(t, err)
-
-	assert.NotEmpty(t, results, "result list can not be empty")
-	assert.Equal(t, "hashicorp/azurerm", results[0].Name)
-	assert.Equal(t, "2.53.0", results[0].Version)
+	r := FakeRegistry{
+		providers: map[string][]string{
+			"hashicorp/azurerm": {"2.53.0"},
+		},
+	}
+	results, err := Update(fs, r, "/tmp/terraform/")
+	require.Nil(t, err)
+	require.NotEmpty(t, results, "result list can not be empty")
+	require.Equal(t, "hashicorp/azurerm", results[0].Name)
+	require.Equal(t, "2.53.0", results[0].Version)
 
 	file, err := fs.Open("/tmp/terraform/main.tf")
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	d, err := ioutil.ReadAll(file)
-	assert.Nil(t, err)
-	assert.Equal(t, basicTerraformExpected, string(d))
+	require.Nil(t, err)
+	require.Equal(t, basicTerraformExpected, string(d))
+}
+
+func TestProviderEmptyRequired(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
+	require.Nil(t, err)
+	f, err := fs.Create("/tmp/terraform/main.tf")
+	require.Nil(t, err)
+	n, err := f.WriteString(noRequiredProviders)
+	require.Nil(t, err)
+	require.Equal(t, len(noRequiredProviders), n)
+	err = f.Close()
+	require.Nil(t, err)
+
+	r := FakeRegistry{
+		providers: map[string][]string{},
+	}
+	_, err = Update(fs, r, "/tmp/terraform/")
+	require.Nil(t, err)
+	/*require.NotEmpty(t, results, "result list can not be empty")
+	require.Equal(t, "hashicorp/azurerm", results[0].Name)
+	require.Equal(t, "2.53.0", results[0].Version)
+
+	file, err := fs.Open("/tmp/terraform/main.tf")
+	require.Nil(t, err)
+	d, err := ioutil.ReadAll(file)
+	require.Nil(t, err)
+	require.Equal(t, basicTerraformExpected, string(d))*/
 }
 
 const basicTerraform = `
@@ -46,6 +78,8 @@ terraform {
     }
   }
 }
+
+provider "azurerm" {}
 `
 
 const basicTerraformExpected = `
@@ -58,5 +92,16 @@ terraform {
       version = "2.53.0"
     }
   }
+}
+
+provider "azurerm" {}
+`
+
+const noRequiredProviders = `
+terraform {
+}
+
+provider "aws" {
+  region = "eu-west-1"
 }
 `

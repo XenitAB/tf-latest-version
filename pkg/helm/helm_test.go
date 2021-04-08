@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/spf13/afero"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/repo"
 )
 
 func createFs(content string) (afero.Fs, error) {
@@ -46,40 +48,49 @@ func readFs(fs afero.Fs) (string, error) {
 
 func TestBasic(t *testing.T) {
 	fs, err := createFs(basicTerraform)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
-	results, err := Update(fs, "/tmp/terraform/")
-	assert.Nil(t, err)
+	r := fakeRepository{
+		charts: map[string]repo.ChartVersions{
+			"aad-pod-identity": {
+				{
+					Metadata: &chart.Metadata{
+						Version: "3.0.3",
+					},
+				},
+			},
+		},
+	}
+	results, err := Update(fs, r, "/tmp/terraform/")
+	require.Nil(t, err)
 
-	assert.NotEmpty(t, results, "result list can not be empty")
-	assert.Equal(t, "aad-pod-identity", results[0].Name)
-	assert.Equal(t, "3.0.3", results[0].Version)
+	require.NotEmpty(t, results, "result list can not be empty")
+	require.Equal(t, "aad-pod-identity", results[0].Name)
+	require.Equal(t, "3.0.3", results[0].Version)
 
 	d, err := readFs(fs)
-	assert.Nil(t, err)
-	assert.Equal(t, basicTerraformExpected, d)
+	require.Nil(t, err)
+	require.Equal(t, basicTerraformExpected, d)
 }
 
 func TestInvalidChart(t *testing.T) {
 	fs, err := createFs(invalidChartTerraform)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
-	_, err = Update(fs, "/tmp/terraform/")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "could not find chart entry")
-}
-
-func TestMissingRepository(t *testing.T) {
-	fs, err := createFs(missingRepositoryTerraform)
-	assert.Nil(t, err)
-
-	results, err := Update(fs, "/tmp/terraform/")
-	assert.Nil(t, err)
-	assert.Empty(t, results, "results list should be empty")
-
-	d, err := readFs(fs)
-	assert.Nil(t, err)
-	assert.Equal(t, missingRepositoryTerraform, d)
+	r := fakeRepository{
+		charts: map[string]repo.ChartVersions{
+			"aad-pod-identity": {
+				{
+					Metadata: &chart.Metadata{
+						Version: "3.0.3",
+					},
+				},
+			},
+		},
+	}
+	_, err = Update(fs, r, "/tmp/terraform/")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "could not find chart entry")
 }
 
 const basicTerraform = `
@@ -105,15 +116,5 @@ resource "helm_release" "aad_pod_identity" {
   chart      = "foobar"
   name       = "aad-pod-identity"
   version    = "2.1.0"
-}
-`
-
-const missingRepositoryTerraform = `
-resource "helm_release" "external_dns_extras" {
-  depends_on = [helm_release.external_dns]
-
-  chart     = "${path.module}/charts/external-dns-extras"
-  name      = "external-dns-extras"
-  namespace = kubernetes_namespace.this.metadata[0].name
 }
 `

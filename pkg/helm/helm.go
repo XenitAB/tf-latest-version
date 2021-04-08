@@ -3,6 +3,7 @@ package helm
 import (
 	"errors"
 	"fmt"
+	iofs "io/fs"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -17,40 +18,32 @@ import (
 
 const terraformExtension = ".tf"
 
-func Update(fs afero.Fs, path string) ([]update.Result, error) {
+func Update(fs afero.Fs, r Repository, path string) ([]update.Result, error) {
 	results := []update.Result{}
+	err := afero.Walk(fs, path, func(path string, info iofs.FileInfo, err error) error {
+		// Ignore directories
+		if info.IsDir() {
+			return nil
+		}
 
-	// List all of the files in the path
-	file, err := fs.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	files, err := file.Readdir(0)
-	if err != nil {
-		return nil, err
-	}
-	file.Close()
-
-	// Iterate through all files
-	for _, fileInfo := range files {
-		if filepath.Ext(fileInfo.Name()) != terraformExtension {
-			continue
+		// Skip non Terraform files
+		if filepath.Ext(info.Name()) != terraformExtension {
+			return nil
 		}
 
 		// Read and parse the content of the file
-		filePath := filepath.Join(path, fileInfo.Name())
-		file, err := fs.Open(filePath)
+		file, err := fs.Open(path)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		d, err := ioutil.ReadAll(file)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		file.Close()
 		hclFile, diag := hclwrite.ParseConfig(d, "main.hcl", hcl.InitialPos)
 		if diag.HasErrors() {
-			return nil, errors.New(diag.Error())
+			return errors.New(diag.Error())
 		}
 
 		// Iterate through all of the HCL blocks
@@ -68,16 +61,16 @@ func Update(fs afero.Fs, path string) ([]update.Result, error) {
 			attrs := block.Body().Attributes()
 			chart, err := attributeString(attrs, "chart")
 			if err != nil {
-				return nil, err
+				return err
 			}
 			repository, err := attributeString(attrs, "repository")
 			if err != nil {
 				// skip if the repository is not set
 				continue
 			}
-			latestVersion, err := getLatestVersion(repository, chart)
+			latestVersion, err := r.getLatestVersion(repository, chart)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			// Update the block with the latest version
@@ -86,19 +79,24 @@ func Update(fs afero.Fs, path string) ([]update.Result, error) {
 		}
 
 		// Clear the old file and write the new content
-		err = fs.Remove(filePath)
+		err = fs.Remove(path)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		file, err = fs.Create(filePath)
+		file, err = fs.Create(path)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		defer file.Close()
 		_, err = hclFile.WriteTo(file)
 		if err != nil {
-			return nil, err
+			return err
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return results, nil

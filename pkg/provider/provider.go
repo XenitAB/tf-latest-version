@@ -2,6 +2,7 @@ package provider
 
 import (
 	"errors"
+	iofs "io/fs"
 	"io/ioutil"
 	"os"
 
@@ -12,27 +13,42 @@ import (
 	"github.com/xenitab/tf-provider-latest/pkg/update"
 )
 
-func Update(fs afero.Fs, path string) ([]update.Result, error) {
+func Update(fs afero.Fs, r Registry, path string) ([]update.Result, error) {
 	results := []update.Result{}
 
-	m, diag := tfconfig.LoadModuleFromFilesystem(fsShim{fs}, path)
-	if diag.HasErrors() {
-		return nil, errors.New(diag.Error())
-	}
-	for k, p := range m.RequiredProviders {
-		latestVersion, err := getLatestVersion(p.Source)
-		if err != nil {
-			return nil, err
+	err := afero.Walk(fs, path, func(path string, info iofs.FileInfo, err error) error {
+		if !info.IsDir() {
+			return nil
 		}
-		o, err := tfupdate.NewOption("provider", k, latestVersion, false, []string{})
-		if err != nil {
-			return nil, err
+
+		m, diag := tfconfig.LoadModuleFromFilesystem(fsShim{fs}, path)
+		if diag.HasErrors() {
+			return errors.New(diag.Error())
 		}
-		err = tfupdate.UpdateFileOrDir(fs, path, o)
-		if err != nil {
-			return nil, err
+
+		for k, p := range m.RequiredProviders {
+			if p.Source == "" {
+				continue
+			}
+			latestVersion, err := r.getLatestVersion(p.Source)
+			if err != nil {
+				return err
+			}
+			o, err := tfupdate.NewOption("provider", k, latestVersion, false, []string{})
+			if err != nil {
+				return err
+			}
+			err = tfupdate.UpdateFileOrDir(fs, path, o)
+			if err != nil {
+				return err
+			}
+			results = append(results, update.Result{Name: p.Source, Version: latestVersion})
 		}
-		results = append(results, update.Result{Name: p.Source, Version: latestVersion})
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return results, nil
