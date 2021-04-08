@@ -10,6 +10,22 @@ type Result struct {
 	Version string
 }
 
+func UniqueResults(rr []Result) []Result {
+	existing := map[string]string{}
+	results := []Result{}
+	for _, r := range rr {
+		v, ok := existing[r.Name]
+		// result already in list
+		if ok && v == r.Version {
+			continue
+		}
+
+		existing[r.Name] = r.Version
+		results = append(results, r)
+	}
+	return results
+}
+
 func ToMarkdown(title string, results []Result) (string, error) {
 	tmpl, err := template.New("markdown").Parse(mdTemplate)
 	if err != nil {
