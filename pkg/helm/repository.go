@@ -62,7 +62,10 @@ func (h HelmRepository) getLatestVersion(URL, chart string) (string, error) {
 		return "", fmt.Errorf("chart %q does not have any versions", chart)
 	}
 
-	v := chartVersions[0].Version
+	v, err := firstStableVersion(chartVersions)
+	if err != nil {
+		return "", fmt.Errorf("could not get a stable version: %v", err)
+	}
 	h.cache[cacheKey] = v
 	return v, nil
 }
