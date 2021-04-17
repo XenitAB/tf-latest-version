@@ -26,11 +26,11 @@ func TestProviderBasic(t *testing.T) {
 			"hashicorp/azurerm": {"2.53.0"},
 		},
 	}
-	results, err := Update(fs, r, "/tmp/terraform/")
+	res, err := Update(fs, "/tmp/terraform/main.tf", r)
 	require.Nil(t, err)
-	require.NotEmpty(t, results, "result list can not be empty")
-	require.Equal(t, "hashicorp/azurerm", results[0].Name)
-	require.Equal(t, "2.53.0", results[0].Version)
+	require.NotEmpty(t, res.Updated, "result list can not be empty")
+	require.Equal(t, "hashicorp/azurerm", res.Updated[0].Name)
+	require.Equal(t, "2.53.0", res.Updated[0].NewVersion)
 
 	file, err := fs.Open("/tmp/terraform/main.tf")
 	require.Nil(t, err)
@@ -54,17 +54,31 @@ func TestProviderEmptyRequired(t *testing.T) {
 	r := FakeRegistry{
 		providers: map[string][]string{},
 	}
-	_, err = Update(fs, r, "/tmp/terraform/")
+	_, err = Update(fs, "/tmp/terraform/main.tf", r)
 	require.Nil(t, err)
-	/*require.NotEmpty(t, results, "result list can not be empty")
-	require.Equal(t, "hashicorp/azurerm", results[0].Name)
-	require.Equal(t, "2.53.0", results[0].Version)
+}
 
-	file, err := fs.Open("/tmp/terraform/main.tf")
+func TestProviderIgnore(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
 	require.Nil(t, err)
-	d, err := ioutil.ReadAll(file)
+	f, err := fs.Create("/tmp/terraform/main.tf")
 	require.Nil(t, err)
-	require.Equal(t, basicTerraformExpected, string(d))*/
+	n, err := f.WriteString(ignoreTerraform)
+	require.Nil(t, err)
+	require.Equal(t, len(ignoreTerraform), n)
+	err = f.Close()
+	require.Nil(t, err)
+
+	r := FakeRegistry{
+		providers: map[string][]string{
+			"hashicorp/azurerm": {"2.53.0"},
+		},
+	}
+	res, err := Update(fs, "/tmp/terraform/main.tf", r)
+	require.Nil(t, err)
+	require.Empty(t, res.Updated)
+	require.NotEmpty(t, res.Ignored)
 }
 
 const basicTerraform = `
@@ -104,4 +118,20 @@ terraform {
 provider "aws" {
   region = "eu-west-1"
 }
+`
+
+const ignoreTerraform = `
+terraform {
+  required_version = "0.13.5"
+
+  required_providers {
+		#tf-latest-version:ignore
+    azurerm = {
+      source  = "hashicorp/azurerm"
+			version = "2.36.0"
+    }
+  }
+}
+
+provider "azurerm" {}
 `
