@@ -61,12 +61,12 @@ func TestBasic(t *testing.T) {
 			},
 		},
 	}
-	results, err := Update(fs, r, "/tmp/terraform/")
+	res, err := Update(fs, "/tmp/terraform/main.tf", r)
 	require.Nil(t, err)
 
-	require.NotEmpty(t, results, "result list can not be empty")
-	require.Equal(t, "aad-pod-identity", results[0].Name)
-	require.Equal(t, "3.0.3", results[0].Version)
+	require.NotEmpty(t, res.Updated, "result list can not be empty")
+	require.Equal(t, "aad-pod-identity", res.Updated[0].Name)
+	require.Equal(t, "3.0.3", res.Updated[0].NewVersion)
 
 	d, err := readFs(fs)
 	require.Nil(t, err)
@@ -88,9 +88,30 @@ func TestInvalidChart(t *testing.T) {
 			},
 		},
 	}
-	_, err = Update(fs, r, "/tmp/terraform/")
+	_, err = Update(fs, "/tmp/terraform/main.tf", r)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "could not find chart entry")
+}
+
+func TestIgnoreChart(t *testing.T) {
+	fs, err := createFs(ignoreTerraform)
+	require.Nil(t, err)
+
+	r := fakeRepository{
+		charts: map[string]repo.ChartVersions{
+			"aad-pod-identity": {
+				{
+					Metadata: &chart.Metadata{
+						Version: "3.0.3",
+					},
+				},
+			},
+		},
+	}
+	res, err := Update(fs, "/tmp/terraform/main.tf", r)
+	require.Nil(t, err)
+	require.Empty(t, res.Updated)
+	require.NotEmpty(t, res.Ignored)
 }
 
 const basicTerraform = `
@@ -116,5 +137,15 @@ resource "helm_release" "aad_pod_identity" {
   chart      = "foobar"
   name       = "aad-pod-identity"
   version    = "2.1.0"
+}
+`
+
+const ignoreTerraform = `
+#tf-latest-version:ignore
+resource "helm_release" "aad_pod_identity" {
+  repository = "https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts"
+  chart      = "aad-pod-identity"
+  name       = "aad-pod-identity"
+	version    = "2.1.0"
 }
 `

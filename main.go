@@ -7,10 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/afero"
-
-	"github.com/xenitab/tf-provider-latest/pkg/helm"
-	"github.com/xenitab/tf-provider-latest/pkg/provider"
-	"github.com/xenitab/tf-provider-latest/pkg/update"
+	"github.com/xenitab/tf-provider-latest/internal/update"
 )
 
 func main() {
@@ -25,26 +22,10 @@ func main() {
 	log.SetOutput(ioutil.Discard)
 
 	fs := afero.NewOsFs()
-	providerResults, err := provider.Update(fs, provider.NewHashicorpRegistry(), string(path))
+	output, err := update.Update(fs, string(path))
 	if err != nil {
-		fmt.Printf("failed updating provider versions: %q\n", err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
-	providerMd, err := update.ToMarkdown("Provider", update.UniqueResults(providerResults))
-	if err != nil {
-		fmt.Printf("failed rendering provider markdown: %q\n", err)
-		os.Exit(1)
-	}
-	helmResults, err := helm.Update(fs, helm.NewHelmRepository(), string(path))
-	if err != nil {
-		fmt.Printf("failed updating helm versions: %q\n", err)
-		os.Exit(1)
-	}
-	helmMd, err := update.ToMarkdown("Helm", update.UniqueResults(helmResults))
-	if err != nil {
-		fmt.Printf("failed rendering provider markdown: %q\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("%s\n\n%s\n", providerMd, helmMd)
+	fmt.Println(output)
 }
