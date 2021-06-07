@@ -11,7 +11,7 @@ import (
 
 func TestProviderBasic(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
+	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
 	require.Nil(t, err)
 	f, err := fs.Create("/tmp/terraform/main.tf")
 	require.Nil(t, err)
@@ -41,7 +41,7 @@ func TestProviderBasic(t *testing.T) {
 
 func TestProviderEmptyRequired(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
+	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
 	require.Nil(t, err)
 	f, err := fs.Create("/tmp/terraform/main.tf")
 	require.Nil(t, err)
@@ -60,7 +60,7 @@ func TestProviderEmptyRequired(t *testing.T) {
 
 func TestProviderIgnore(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
+	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
 	require.Nil(t, err)
 	f, err := fs.Create("/tmp/terraform/main.tf")
 	require.Nil(t, err)

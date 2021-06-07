@@ -13,7 +13,7 @@ import (
 
 func createFs(content string) (afero.Fs, error) {
 	fs := afero.NewMemMapFs()
-	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(777))
+	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
 	if err != nil {
 		return nil, err
 	}

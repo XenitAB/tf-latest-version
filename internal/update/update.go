@@ -15,9 +15,12 @@ import (
 const TerraformExtension = ".tf"
 
 func Update(fs afero.Fs, path string) (string, error) {
-	resMap := map[string]result.Result{}
+	resMap := map[string]*result.Result{}
 
 	err := afero.Walk(fs, path, func(path string, info iofs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if info.IsDir() {
 			return nil
 		}
@@ -53,7 +56,7 @@ func Update(fs afero.Fs, path string) (string, error) {
 	return strings.Join(outputs, "\n\n"), nil
 }
 
-func merge(resMap map[string]result.Result, res result.Result) map[string]result.Result {
+func merge(resMap map[string]*result.Result, res *result.Result) map[string]*result.Result {
 	exist, ok := resMap[res.Title]
 	if !ok {
 		resMap[res.Title] = res

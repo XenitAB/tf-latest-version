@@ -2,7 +2,6 @@ package helm
 
 import (
 	"errors"
-	"io/ioutil"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -15,34 +14,29 @@ import (
 	"github.com/xenitab/tf-provider-latest/internal/result"
 )
 
-func Update(fs afero.Fs, path string, r Repository) (result.Result, error) {
-	// Read the file
-	file, err := fs.Open(path)
+func Update(fs afero.Fs, path string, r Repository) (*result.Result, error) {
+	d, err := afero.ReadFile(fs, path)
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
-	d, err := ioutil.ReadAll(file)
-	if err != nil {
-		return result.Result{}, err
-	}
-	file.Close()
+
 	hclWriteFile, diags := hclwrite.ParseConfig(d, "main.hcl", hcl.InitialPos)
 	if diags.HasErrors() {
-		return result.Result{}, errors.New(diags.Error())
+		return nil, errors.New(diags.Error())
 	}
 	hclFile, diags := hclsyntax.ParseConfig(d, path, hcl.InitialPos)
 	if diags.HasErrors() {
-		return result.Result{}, errors.New(diags.Error())
+		return nil, errors.New(diags.Error())
 	}
 	aa, err := annotation.ParseAnnotations(string(d))
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
 
 	// Iterate all of the helm releases
 	hh, err := parseHelmReleases(hclFile)
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
 	res := result.NewResult("Helm")
 	for _, h := range hh {
@@ -53,13 +47,13 @@ func Update(fs afero.Fs, path string, r Repository) (result.Result, error) {
 
 		// Skip if block is annotated
 		if annotation.ShouldSkipBlock(aa, h.blockRange) {
-			res.Ignored = append(res.Ignored, result.Ignore{Name: h.chart, Path: path})
+			res.Ignored = append(res.Ignored, &result.Ignore{Name: h.chart, Path: path})
 			continue
 		}
 
 		latestVersion, err := r.getLatestVersion(h.repository, h.chart)
 		if err != nil {
-			return result.Result{}, err
+			return nil, err
 		}
 		if h.version == latestVersion {
 			continue
@@ -68,26 +62,26 @@ func Update(fs afero.Fs, path string, r Repository) (result.Result, error) {
 		// Update the block with the latest version
 		block := hclWriteFile.Body().FirstMatchingBlock("resource", []string{"helm_release", h.name})
 		if block == nil {
-			return result.Result{}, errors.New("block cannot be nil")
+			return nil, errors.New("block cannot be nil")
 		}
 
 		block.Body().SetAttributeValue("version", cty.StringVal(latestVersion))
-		res.Updated = append(res.Updated, result.Update{Name: h.chart, OldVersion: h.version, NewVersion: latestVersion})
+		res.Updated = append(res.Updated, &result.Update{Name: h.chart, OldVersion: h.version, NewVersion: latestVersion})
 	}
 
 	// Clear the old file and write the new content
 	err = fs.Remove(path)
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
-	file, err = fs.Create(path)
+	file, err := fs.Create(path)
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
 	defer file.Close()
 	_, err = hclWriteFile.WriteTo(file)
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
 
 	return res, nil
@@ -108,7 +102,7 @@ type helmReleaseResource struct {
 	Remain     hcl.Body `hcl:",remain"`
 }
 
-func parseHelmReleases(file *hcl.File) ([]helmRelease, error) {
+func parseHelmReleases(file *hcl.File) ([]*helmRelease, error) {
 	rootSchema := &hcl.BodySchema{
 		Blocks: []hcl.BlockHeaderSchema{
 			{
@@ -119,10 +113,10 @@ func parseHelmReleases(file *hcl.File) ([]helmRelease, error) {
 	}
 	content, _, diags := file.Body.PartialContent(rootSchema)
 	if diags.HasErrors() {
-		return []helmRelease{}, errors.New(diags.Error())
+		return []*helmRelease{}, errors.New(diags.Error())
 	}
 
-	hh := []helmRelease{}
+	hh := []*helmRelease{}
 	for _, block := range content.Blocks {
 		if block.Type != "resource" {
 			continue
@@ -146,10 +140,10 @@ func parseHelmReleases(file *hcl.File) ([]helmRelease, error) {
 		}
 		diags := gohcl.DecodeBody(block.Body, ctx, &hrr)
 		if diags.HasErrors() {
-			return []helmRelease{}, errors.New(diags.Error())
+			return []*helmRelease{}, errors.New(diags.Error())
 		}
 
-		hh = append(hh, helmRelease{
+		hh = append(hh, &helmRelease{
 			name:       block.Labels[1],
 			version:    hrr.Version,
 			chart:      hrr.Chart,

@@ -10,7 +10,7 @@ import (
 )
 
 type Repository interface {
-	getLatestVersion(URL, chart string) (string, error)
+	getLatestVersion(url, chart string) (string, error)
 }
 
 type HelmRepository struct {
@@ -23,20 +23,18 @@ func NewHelmRepository() HelmRepository {
 	}
 }
 
-func (h HelmRepository) getLatestVersion(URL, chart string) (string, error) {
-	cacheKey := fmt.Sprintf("%s/%s", URL, chart)
+func (h HelmRepository) getLatestVersion(url, chart string) (string, error) {
+	cacheKey := fmt.Sprintf("%s/%s", url, chart)
 	if v, ok := h.cache[cacheKey]; ok {
 		return v, nil
 	}
 
 	httpGetter := getter.Provider{
 		Schemes: []string{"https", "http"},
-		New: func(options ...getter.Option) (getter.Getter, error) {
-			return getter.NewHTTPGetter(options...)
-		},
+		New:     getter.NewHTTPGetter,
 	}
 	entry := repo.Entry{
-		URL: URL,
+		URL: url,
 	}
 	chartRepository, err := repo.NewChartRepository(&entry, getter.Providers{httpGetter})
 	if err != nil {
@@ -64,7 +62,7 @@ func (h HelmRepository) getLatestVersion(URL, chart string) (string, error) {
 
 	v, err := firstStableVersion(chartVersions)
 	if err != nil {
-		return "", fmt.Errorf("could not get a stable version: %v", err)
+		return "", fmt.Errorf("could not get a stable version: %w", err)
 	}
 	h.cache[cacheKey] = v
 	return v, nil
@@ -74,7 +72,7 @@ type fakeRepository struct {
 	charts map[string]repo.ChartVersions
 }
 
-func (f fakeRepository) getLatestVersion(URL, chart string) (string, error) {
+func (f fakeRepository) getLatestVersion(url, chart string) (string, error) {
 	chartVersion, ok := f.charts[chart]
 	if !ok {
 		return "", fmt.Errorf("could not find chart entry %q", chart)
@@ -87,7 +85,7 @@ func firstStableVersion(chartVersions repo.ChartVersions) (string, error) {
 	for _, ch := range chartVersions {
 		v, err := semver.NewVersion(ch.Version)
 		if err != nil {
-			return "", fmt.Errorf("could not parse semver %q: %v", ch.Version, err)
+			return "", fmt.Errorf("could not parse semver %q: %w", ch.Version, err)
 		}
 
 		if v.Prerelease() != "" {

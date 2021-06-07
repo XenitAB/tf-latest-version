@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type Registry interface {
@@ -36,7 +37,8 @@ func (h HashicorpRegistry) getLatestVersion(name string) (string, error) {
 	}
 
 	url := fmt.Sprintf("https://registry.terraform.io/v1/providers/%s", name)
-	r, err := http.Get(url)
+	client := http.Client{Timeout: 10 * time.Second}
+	r, err := client.Get(url)
 	if err != nil {
 		return "", err
 	}

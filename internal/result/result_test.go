@@ -9,14 +9,14 @@ import (
 func TestBoth(t *testing.T) {
 	res := Result{
 		Title: "test",
-		Updated: []Update{
+		Updated: []*Update{
 			{
 				Name:       "foo",
 				OldVersion: "0",
 				NewVersion: "1",
 			},
 		},
-		Ignored: []Ignore{
+		Ignored: []*Ignore{
 			{
 				Name: "bar",
 				Path: "baz",
@@ -32,7 +32,7 @@ func TestBoth(t *testing.T) {
 func TestUpdated(t *testing.T) {
 	res := Result{
 		Title: "test",
-		Updated: []Update{
+		Updated: []*Update{
 			{
 				Name:       "foo",
 				OldVersion: "0",
@@ -49,7 +49,7 @@ func TestUpdated(t *testing.T) {
 				NewVersion: "2",
 			},
 		},
-		Ignored: []Ignore{},
+		Ignored: []*Ignore{},
 	}
 
 	md, err := res.ToMarkdown()
@@ -60,8 +60,8 @@ func TestUpdated(t *testing.T) {
 func TestIgnored(t *testing.T) {
 	res := Result{
 		Title:   "test",
-		Updated: []Update{},
-		Ignored: []Ignore{
+		Updated: []*Update{},
+		Ignored: []*Ignore{
 			{
 				Name: "bar",
 				Path: "baz",
@@ -81,8 +81,8 @@ func TestIgnored(t *testing.T) {
 func TestNone(t *testing.T) {
 	res := Result{
 		Title:   "test",
-		Updated: []Update{},
-		Ignored: []Ignore{},
+		Updated: []*Update{},
+		Ignored: []*Ignore{},
 	}
 
 	md, err := res.ToMarkdown()
