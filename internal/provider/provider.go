@@ -13,41 +13,41 @@ import (
 	"github.com/xenitab/tf-provider-latest/internal/result"
 )
 
-func Update(fs afero.Fs, path string, r Registry) (result.Result, error) {
+func Update(fs afero.Fs, path string, r Registry) (*result.Result, error) {
 	// Parse the file contents
 	file, err := fs.Open(path)
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
 	d, err := ioutil.ReadAll(file)
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
 	file.Close()
 	hclFile, diags := hclsyntax.ParseConfig(d, path, hcl.InitialPos)
 	if diags.HasErrors() {
-		return result.Result{}, errors.New(diags.Error())
+		return nil, errors.New(diags.Error())
 	}
 	pp, err := parseRequiredProviders(hclFile)
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
 	aa, err := annotation.ParseAnnotations(string(d))
 	if err != nil {
-		return result.Result{}, err
+		return nil, err
 	}
 
 	// Loop all of the providers
 	res := result.NewResult("Provider")
 	for _, p := range pp {
 		if annotation.ShouldSkipBlock(aa, p.blockRange) {
-			res.Ignored = append(res.Ignored, result.Ignore{Name: p.source, Path: path})
+			res.Ignored = append(res.Ignored, &result.Ignore{Name: p.source, Path: path})
 			continue
 		}
 
 		latestVersion, err := r.getLatestVersion(p.source)
 		if err != nil {
-			return result.Result{}, err
+			return nil, err
 		}
 		if latestVersion == p.version {
 			continue
@@ -55,13 +55,13 @@ func Update(fs afero.Fs, path string, r Registry) (result.Result, error) {
 
 		o, err := tfupdate.NewOption("provider", p.name, latestVersion, false, []string{})
 		if err != nil {
-			return result.Result{}, err
+			return nil, err
 		}
 		err = tfupdate.UpdateFileOrDir(fs, path, o)
 		if err != nil {
-			return result.Result{}, err
+			return nil, err
 		}
-		res.Updated = append(res.Updated, result.Update{Name: p.source, OldVersion: p.version, NewVersion: latestVersion})
+		res.Updated = append(res.Updated, &result.Update{Name: p.source, OldVersion: p.version, NewVersion: latestVersion})
 	}
 
 	return res, nil
@@ -74,8 +74,7 @@ type provider struct {
 	blockRange hcl.Range
 }
 
-func parseRequiredProviders(file *hcl.File) ([]provider, error) {
-
+func parseRequiredProviders(file *hcl.File) ([]*provider, error) {
 	rootSchema := &hcl.BodySchema{
 		Blocks: []hcl.BlockHeaderSchema{
 			{
@@ -94,10 +93,10 @@ func parseRequiredProviders(file *hcl.File) ([]provider, error) {
 	}
 	rootContent, _, diags := file.Body.PartialContent(rootSchema)
 	if diags.HasErrors() {
-		return []provider{}, errors.New(diags.Error())
+		return []*provider{}, errors.New(diags.Error())
 	}
 
-	pp := []provider{}
+	pp := []*provider{}
 	for _, block := range rootContent.Blocks {
 		if block.Type != "terraform" {
 			continue
@@ -105,7 +104,7 @@ func parseRequiredProviders(file *hcl.File) ([]provider, error) {
 
 		requiredProvidersContent, _, diags := block.Body.PartialContent(requiredProvidersSchema)
 		if diags.HasErrors() {
-			return []provider{}, errors.New(diags.Error())
+			return []*provider{}, errors.New(diags.Error())
 		}
 
 		// skipping if no required_providers are set
@@ -115,19 +114,19 @@ func parseRequiredProviders(file *hcl.File) ([]provider, error) {
 
 		attrs, diags := requiredProvidersContent.Blocks[0].Body.JustAttributes()
 		if diags.HasErrors() {
-			return []provider{}, errors.New(diags.Error())
+			return []*provider{}, errors.New(diags.Error())
 		}
 
 		for k, v := range attrs {
 			value, diags := v.Expr.Value(nil)
 			if diags.HasErrors() {
-				return []provider{}, errors.New(diags.Error())
+				return []*provider{}, errors.New(diags.Error())
 			}
 
 			mapValues := value.AsValueMap()
 			version := mapValues["version"].AsString()
 			source := mapValues["source"].AsString()
-			pp = append(pp, provider{
+			pp = append(pp, &provider{
 				name:       k,
 				version:    version,
 				source:     source,

@@ -19,21 +19,21 @@ type Ignore struct {
 
 type Result struct {
 	Title   string
-	Ignored []Ignore
-	Updated []Update
+	Ignored []*Ignore
+	Updated []*Update
 }
 
-func NewResult(title string) Result {
-	return Result{
+func NewResult(title string) *Result {
+	return &Result{
 		Title:   title,
-		Ignored: []Ignore{},
-		Updated: []Update{},
+		Ignored: []*Ignore{},
+		Updated: []*Update{},
 	}
 }
 
-func filterUnique(res Result) Result {
+func filterUnique(res *Result) *Result {
 	existingUpdated := map[string]string{}
-	updated := []Update{}
+	updated := []*Update{}
 	for _, u := range res.Updated {
 		v, ok := existingUpdated[u.Name]
 		// result already in list
@@ -47,7 +47,7 @@ func filterUnique(res Result) Result {
 	res.Updated = updated
 
 	existingIgnored := map[string]string{}
-	ignored := []Ignore{}
+	ignored := []*Ignore{}
 	for _, u := range res.Ignored {
 		v, ok := existingIgnored[u.Name]
 		// result already in list
@@ -63,7 +63,7 @@ func filterUnique(res Result) Result {
 	return res
 }
 
-func (r Result) ToMarkdown() (string, error) {
+func (r *Result) ToMarkdown() (string, error) {
 	res := filterUnique(r)
 	if len(res.Updated) == 0 && len(res.Ignored) == 0 {
 		return fmt.Sprintf("# %s\nNo Changes.", r.Title), nil
