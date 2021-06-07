@@ -15,11 +15,11 @@ import (
 )
 
 func Update(fs afero.Fs, path string, r Repository) (*result.Result, error) {
+	// Read HCL file
 	d, err := afero.ReadFile(fs, path)
 	if err != nil {
 		return nil, err
 	}
-
 	hclWriteFile, diags := hclwrite.ParseConfig(d, "main.hcl", hcl.InitialPos)
 	if diags.HasErrors() {
 		return nil, errors.New(diags.Error())
@@ -28,16 +28,16 @@ func Update(fs afero.Fs, path string, r Repository) (*result.Result, error) {
 	if diags.HasErrors() {
 		return nil, errors.New(diags.Error())
 	}
-	aa, err := annotation.ParseAnnotations(string(d))
+	annos, err := annotation.ParseAnnotations(string(d))
+	if err != nil {
+		return nil, err
+	}
+	hh, err := parseHelmReleases(hclFile)
 	if err != nil {
 		return nil, err
 	}
 
 	// Iterate all of the helm releases
-	hh, err := parseHelmReleases(hclFile)
-	if err != nil {
-		return nil, err
-	}
 	res := result.NewResult("Helm")
 	for _, h := range hh {
 		// Skip if the repository is not set
@@ -45,8 +45,7 @@ func Update(fs afero.Fs, path string, r Repository) (*result.Result, error) {
 			continue
 		}
 
-		// Skip if block is annotated
-		if annotation.ShouldSkipBlock(aa, h.blockRange) {
+		if annotation.ShouldSkipBlock(annos, h.blockRange) {
 			res.Ignored = append(res.Ignored, &result.Ignore{Name: h.chart, Path: path})
 			continue
 		}
@@ -59,7 +58,6 @@ func Update(fs afero.Fs, path string, r Repository) (*result.Result, error) {
 			continue
 		}
 
-		// Update the block with the latest version
 		block := hclWriteFile.Body().FirstMatchingBlock("resource", []string{"helm_release", h.name})
 		if block == nil {
 			return nil, errors.New("block cannot be nil")
