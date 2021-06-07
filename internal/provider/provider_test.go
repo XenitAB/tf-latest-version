@@ -81,6 +81,29 @@ func TestProviderIgnore(t *testing.T) {
 	require.NotEmpty(t, res.Ignored)
 }
 
+func TestProviderFalsePositive(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
+	require.Nil(t, err)
+	f, err := fs.Create("/tmp/terraform/main.tf")
+	require.Nil(t, err)
+	n, err := f.WriteString(falsePositiveTerraform)
+	require.Nil(t, err)
+	require.Equal(t, len(falsePositiveTerraform), n)
+	err = f.Close()
+	require.Nil(t, err)
+
+	r := FakeRegistry{
+		providers: map[string][]string{
+			"hashicorp/azurerm": {"2.53.0"},
+		},
+	}
+	res, err := Update(fs, "/tmp/terraform/main.tf", r)
+	require.Nil(t, err)
+	require.NotEmpty(t, res.Updated)
+	require.Empty(t, res.Ignored)
+}
+
 const basicTerraform = `
 terraform {
   required_version = "0.13.5"
@@ -126,6 +149,22 @@ terraform {
 
   required_providers {
 		#tf-latest-version:ignore
+    azurerm = {
+      source  = "hashicorp/azurerm"
+			version = "2.36.0"
+    }
+  }
+}
+
+provider "azurerm" {}
+`
+
+const falsePositiveTerraform = `
+terraform {
+  required_version = "0.13.5"
+
+  required_providers {
+		#do-not:ignore
     azurerm = {
       source  = "hashicorp/azurerm"
 			version = "2.36.0"

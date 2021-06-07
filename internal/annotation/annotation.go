@@ -2,13 +2,14 @@ package annotation
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
 const (
-	IgnoreComment = "#tf-latest-version:ignore"
+	ignoreComment = "#tf-latest-version:ignore"
 )
 
 type Annotation struct {
@@ -41,7 +42,9 @@ func ParseAnnotations(hclString string) ([]*Annotation, error) {
 
 func ShouldSkipBlock(aa []*Annotation, r hcl.Range) bool {
 	for _, a := range aa {
-		if a.Token.Range.Start.Line == r.Start.Line-1 {
+		tokenValue := string(a.Token.Bytes)
+		tokenValue = strings.TrimSuffix(tokenValue, "\n")
+		if a.Token.Range.Start.Line == r.Start.Line-1 && tokenValue == ignoreComment {
 			return true
 		}
 	}

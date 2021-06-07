@@ -114,6 +114,27 @@ func TestIgnoreChart(t *testing.T) {
 	require.NotEmpty(t, res.Ignored)
 }
 
+func TestIgnoreFalsePositive(t *testing.T) {
+	fs, err := createFs(ignoreFalsePositiveTerraform)
+	require.Nil(t, err)
+
+	r := fakeRepository{
+		charts: map[string]repo.ChartVersions{
+			"aad-pod-identity": {
+				{
+					Metadata: &chart.Metadata{
+						Version: "3.0.3",
+					},
+				},
+			},
+		},
+	}
+	res, err := Update(fs, "/tmp/terraform/main.tf", r)
+	require.Nil(t, err)
+	require.NotEmpty(t, res.Updated)
+	require.Empty(t, res.Ignored)
+}
+
 const basicTerraform = `
 resource "helm_release" "aad_pod_identity" {
   repository = "https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts"
@@ -142,6 +163,16 @@ resource "helm_release" "aad_pod_identity" {
 
 const ignoreTerraform = `
 #tf-latest-version:ignore
+resource "helm_release" "aad_pod_identity" {
+  repository = "https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts"
+  chart      = "aad-pod-identity"
+  name       = "aad-pod-identity"
+	version    = "2.1.0"
+}
+`
+
+const ignoreFalsePositiveTerraform = `
+#do-not:ignore
 resource "helm_release" "aad_pod_identity" {
   repository = "https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts"
   chart      = "aad-pod-identity"
