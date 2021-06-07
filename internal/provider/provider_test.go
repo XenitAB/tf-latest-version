@@ -9,18 +9,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestProviderBasic(t *testing.T) {
+func createFs(content string) (afero.Fs, error) {
 	fs := afero.NewMemMapFs()
 	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
-	require.Nil(t, err)
+	if err != nil {
+		return nil, err
+	}
 	f, err := fs.Create("/tmp/terraform/main.tf")
-	require.Nil(t, err)
-	n, err := f.WriteString(basicTerraform)
-	require.Nil(t, err)
-	require.Equal(t, len(basicTerraform), n)
+	if err != nil {
+		return nil, err
+	}
+	_, err = f.WriteString(content)
+	if err != nil {
+		return nil, err
+	}
 	err = f.Close()
-	require.Nil(t, err)
+	if err != nil {
+		return nil, err
+	}
+	return fs, nil
+}
 
+func TestProviderBasic(t *testing.T) {
+	fs, err := createFs(basicTerraform)
+	require.Nil(t, err)
 	r := FakeRegistry{
 		providers: map[string][]string{
 			"hashicorp/azurerm": {"2.53.0"},
@@ -40,17 +52,8 @@ func TestProviderBasic(t *testing.T) {
 }
 
 func TestProviderEmptyRequired(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
+	fs, err := createFs(noRequiredProviders)
 	require.Nil(t, err)
-	f, err := fs.Create("/tmp/terraform/main.tf")
-	require.Nil(t, err)
-	n, err := f.WriteString(noRequiredProviders)
-	require.Nil(t, err)
-	require.Equal(t, len(noRequiredProviders), n)
-	err = f.Close()
-	require.Nil(t, err)
-
 	r := FakeRegistry{
 		providers: map[string][]string{},
 	}
@@ -59,17 +62,8 @@ func TestProviderEmptyRequired(t *testing.T) {
 }
 
 func TestProviderIgnore(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
+	fs, err := createFs(ignoreTerraform)
 	require.Nil(t, err)
-	f, err := fs.Create("/tmp/terraform/main.tf")
-	require.Nil(t, err)
-	n, err := f.WriteString(ignoreTerraform)
-	require.Nil(t, err)
-	require.Equal(t, len(ignoreTerraform), n)
-	err = f.Close()
-	require.Nil(t, err)
-
 	r := FakeRegistry{
 		providers: map[string][]string{
 			"hashicorp/azurerm": {"2.53.0"},
@@ -82,17 +76,8 @@ func TestProviderIgnore(t *testing.T) {
 }
 
 func TestProviderFalsePositive(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	err := fs.MkdirAll("/tmp/terraform/", os.FileMode(0777))
+	fs, err := createFs(falsePositiveTerraform)
 	require.Nil(t, err)
-	f, err := fs.Create("/tmp/terraform/main.tf")
-	require.Nil(t, err)
-	n, err := f.WriteString(falsePositiveTerraform)
-	require.Nil(t, err)
-	require.Equal(t, len(falsePositiveTerraform), n)
-	err = f.Close()
-	require.Nil(t, err)
-
 	r := FakeRegistry{
 		providers: map[string][]string{
 			"hashicorp/azurerm": {"2.53.0"},
