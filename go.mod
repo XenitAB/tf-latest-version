@@ -4,13 +4,14 @@ go 1.16
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1
+	github.com/agext/levenshtein v1.2.2 // indirect
 	github.com/hashicorp/hcl/v2 v2.10.0
-	github.com/hashicorp/terraform-config-inspect v0.0.0-20210511202847-ad33d83d7650
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/minamijoyo/tfupdate v0.5.1
 	github.com/spf13/afero v1.6.0
 	github.com/stretchr/testify v1.7.0
-	github.com/zclconf/go-cty v1.8.3
-	helm.sh/helm/v3 v3.6.0
+	github.com/zclconf/go-cty v1.9.0
+	helm.sh/helm/v3 v3.6.2
 	k8s.io/client-go v11.0.0+incompatible // indirect
 )
 

@@ -89,6 +89,28 @@ func TestProviderFalsePositive(t *testing.T) {
 	require.Empty(t, res.Ignored)
 }
 
+func TestProviderExtraConfig(t *testing.T) {
+	fs, err := createFs(extraConfigTerraform)
+	require.Nil(t, err)
+	r := FakeRegistry{
+		providers: map[string][]string{
+			"hashicorp/azurerm": {"2.53.0"},
+		},
+	}
+	//runtime.Breakpoint()
+	res, err := Update(fs, "/tmp/terraform/main.tf", r)
+	require.Nil(t, err)
+	require.NotEmpty(t, res.Updated, "result list can not be empty")
+	require.Equal(t, "hashicorp/azurerm", res.Updated[0].Name)
+	require.Equal(t, "2.53.0", res.Updated[0].NewVersion)
+
+	file, err := fs.Open("/tmp/terraform/main.tf")
+	require.Nil(t, err)
+	d, err := ioutil.ReadAll(file)
+	require.Nil(t, err)
+	require.Equal(t, extraConfigTerraformExpected, string(d))
+}
+
 const basicTerraform = `
 terraform {
   required_version = "0.13.5"
@@ -153,6 +175,38 @@ terraform {
     azurerm = {
       source  = "hashicorp/azurerm"
 			version = "2.36.0"
+    }
+  }
+}
+
+provider "azurerm" {}
+`
+
+const extraConfigTerraform = `
+terraform {
+  required_version = "0.13.5"
+
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "2.35.0"
+      configuration_aliases = [azurerm.foobar]
+    }
+  }
+}
+
+provider "azurerm" {}
+`
+
+const extraConfigTerraformExpected = `
+terraform {
+  required_version = "0.13.5"
+
+  required_providers {
+    azurerm = {
+      source                = "hashicorp/azurerm"
+      version               = "2.53.0"
+      configuration_aliases = [azurerm.foobar]
     }
   }
 }
