@@ -119,43 +119,52 @@ func parseRequiredProviders(file *hcl.File) ([]*provider, error) {
 		}
 
 		for name, attr := range attrs {
-			keyValuePairs, diags := hcl.ExprMap(attr.Expr)
-			if diags.HasErrors() {
-				return []*provider{}, errors.New(diags.Error())
-			}
-
-			p := &provider{
-				name:       name,
-				blockRange: attr.Range,
-			}
-			for _, kvp := range keyValuePairs {
-				key, diags := kvp.Key.Value(nil)
-				if diags.HasErrors() {
-					return []*provider{}, errors.New(diags.Error())
-				}
-
-				if key.Type() != cty.String {
-					return []*provider{}, errors.New("invalid key type")
-				}
-
-				switch key.AsString() {
-				case "version":
-					version, diags := kvp.Value.Value(nil)
-					if diags.HasErrors() {
-						return []*provider{}, errors.New(diags.Error())
-					}
-					p.version = version.AsString()
-				case "source":
-					source, diags := kvp.Value.Value(nil)
-					if diags.HasErrors() {
-						return []*provider{}, errors.New(diags.Error())
-					}
-					p.source = source.AsString()
-				}
+			p, err := parseProvider(name, attr)
+			if err != nil {
+				return []*provider{}, err
 			}
 			pp = append(pp, p)
 		}
 	}
 
 	return pp, nil
+}
+
+func parseProvider(name string, attr *hcl.Attribute) (*provider, error) {
+	keyValuePairs, diags := hcl.ExprMap(attr.Expr)
+	if diags.HasErrors() {
+		return nil, errors.New(diags.Error())
+	}
+
+	p := &provider{
+		name:       name,
+		blockRange: attr.Range,
+	}
+	//nolint:gocritic // ignore for now
+	for _, kvp := range keyValuePairs {
+		key, diags := kvp.Key.Value(nil)
+		if diags.HasErrors() {
+			return nil, errors.New(diags.Error())
+		}
+
+		if key.Type() != cty.String {
+			return nil, errors.New("invalid key type")
+		}
+
+		switch key.AsString() {
+		case "version":
+			version, diags := kvp.Value.Value(nil)
+			if diags.HasErrors() {
+				return nil, errors.New(diags.Error())
+			}
+			p.version = version.AsString()
+		case "source":
+			source, diags := kvp.Value.Value(nil)
+			if diags.HasErrors() {
+				return nil, errors.New(diags.Error())
+			}
+			p.source = source.AsString()
+		}
+	}
+	return p, nil
 }
