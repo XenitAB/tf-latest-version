@@ -30,25 +30,45 @@ func createFs(content string) (afero.Fs, error) {
 	return fs, nil
 }
 
-func TestProviderBasic(t *testing.T) {
-	fs, err := createFs(basicTerraform)
-	require.Nil(t, err)
+func TestProviderUpdate(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "basic",
+			input:    basicTerraform,
+			expected: basicTerraformExpected,
+		},
+		{
+			name:     "extra config",
+			input:    extraConfigTerraform,
+			expected: extraConfigTerraformExpected,
+		},
+	}
 	r := FakeRegistry{
 		providers: map[string][]string{
 			"hashicorp/azurerm": {"2.53.0"},
 		},
 	}
-	res, err := Update(fs, "/tmp/terraform/main.tf", r)
-	require.Nil(t, err)
-	require.NotEmpty(t, res.Updated, "result list can not be empty")
-	require.Equal(t, "hashicorp/azurerm", res.Updated[0].Name)
-	require.Equal(t, "2.53.0", res.Updated[0].NewVersion)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs, err := createFs(tt.input)
+			require.Nil(t, err)
+			res, err := Update(fs, "/tmp/terraform/main.tf", r)
+			require.Nil(t, err)
+			require.NotEmpty(t, res.Updated, "result list can not be empty")
+			require.Equal(t, "hashicorp/azurerm", res.Updated[0].Name)
+			require.Equal(t, "2.53.0", res.Updated[0].NewVersion)
 
-	file, err := fs.Open("/tmp/terraform/main.tf")
-	require.Nil(t, err)
-	d, err := ioutil.ReadAll(file)
-	require.Nil(t, err)
-	require.Equal(t, basicTerraformExpected, string(d))
+			file, err := fs.Open("/tmp/terraform/main.tf")
+			require.Nil(t, err)
+			d, err := ioutil.ReadAll(file)
+			require.Nil(t, err)
+			require.Equal(t, tt.expected, string(d))
+		})
+	}
 }
 
 func TestProviderEmptyRequired(t *testing.T) {
@@ -153,6 +173,38 @@ terraform {
     azurerm = {
       source  = "hashicorp/azurerm"
 			version = "2.36.0"
+    }
+  }
+}
+
+provider "azurerm" {}
+`
+
+const extraConfigTerraform = `
+terraform {
+  required_version = "0.13.5"
+
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "2.35.0"
+      configuration_aliases = [azurerm.foobar]
+    }
+  }
+}
+
+provider "azurerm" {}
+`
+
+const extraConfigTerraformExpected = `
+terraform {
+  required_version = "0.13.5"
+
+  required_providers {
+    azurerm = {
+      source                = "hashicorp/azurerm"
+      version               = "2.53.0"
+      configuration_aliases = [azurerm.foobar]
     }
   }
 }

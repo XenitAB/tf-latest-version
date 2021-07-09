@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/minamijoyo/tfupdate/tfupdate"
 	"github.com/spf13/afero"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/xenitab/tf-provider-latest/internal/annotation"
 	"github.com/xenitab/tf-provider-latest/internal/result"
@@ -117,23 +118,53 @@ func parseRequiredProviders(file *hcl.File) ([]*provider, error) {
 			return []*provider{}, errors.New(diags.Error())
 		}
 
-		for k, v := range attrs {
-			value, diags := v.Expr.Value(nil)
-			if diags.HasErrors() {
-				return []*provider{}, errors.New(diags.Error())
+		for name, attr := range attrs {
+			p, err := parseProvider(name, attr)
+			if err != nil {
+				return []*provider{}, err
 			}
-
-			mapValues := value.AsValueMap()
-			version := mapValues["version"].AsString()
-			source := mapValues["source"].AsString()
-			pp = append(pp, &provider{
-				name:       k,
-				version:    version,
-				source:     source,
-				blockRange: v.Range,
-			})
+			pp = append(pp, p)
 		}
 	}
 
 	return pp, nil
+}
+
+func parseProvider(name string, attr *hcl.Attribute) (*provider, error) {
+	keyValuePairs, diags := hcl.ExprMap(attr.Expr)
+	if diags.HasErrors() {
+		return nil, errors.New(diags.Error())
+	}
+
+	p := &provider{
+		name:       name,
+		blockRange: attr.Range,
+	}
+	//nolint:gocritic // ignore for now
+	for _, kvp := range keyValuePairs {
+		key, diags := kvp.Key.Value(nil)
+		if diags.HasErrors() {
+			return nil, errors.New(diags.Error())
+		}
+
+		if key.Type() != cty.String {
+			return nil, errors.New("invalid key type")
+		}
+
+		switch key.AsString() {
+		case "version":
+			version, diags := kvp.Value.Value(nil)
+			if diags.HasErrors() {
+				return nil, errors.New(diags.Error())
+			}
+			p.version = version.AsString()
+		case "source":
+			source, diags := kvp.Value.Value(nil)
+			if diags.HasErrors() {
+				return nil, errors.New(diags.Error())
+			}
+			p.source = source.AsString()
+		}
+	}
+	return p, nil
 }
