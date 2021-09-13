@@ -61,7 +61,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 	}
-	res, err := Update(fs, "/tmp/terraform/main.tf", r)
+	res, err := Update(fs, "/tmp/terraform/main.tf", r, nil)
 	require.Nil(t, err)
 
 	require.NotEmpty(t, res.Updated, "result list can not be empty")
@@ -88,7 +88,7 @@ func TestInvalidChart(t *testing.T) {
 			},
 		},
 	}
-	_, err = Update(fs, "/tmp/terraform/main.tf", r)
+	_, err = Update(fs, "/tmp/terraform/main.tf", r, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "could not find chart entry")
 }
@@ -108,7 +108,7 @@ func TestIgnoreChart(t *testing.T) {
 			},
 		},
 	}
-	res, err := Update(fs, "/tmp/terraform/main.tf", r)
+	res, err := Update(fs, "/tmp/terraform/main.tf", r, nil)
 	require.Nil(t, err)
 	require.Empty(t, res.Updated)
 	require.NotEmpty(t, res.Ignored)
@@ -129,10 +129,43 @@ func TestIgnoreFalsePositive(t *testing.T) {
 			},
 		},
 	}
-	res, err := Update(fs, "/tmp/terraform/main.tf", r)
+	res, err := Update(fs, "/tmp/terraform/main.tf", r, nil)
 	require.Nil(t, err)
 	require.NotEmpty(t, res.Updated)
 	require.Empty(t, res.Ignored)
+}
+
+func TestHelmSelector(t *testing.T) {
+	fs, err := createFs(helmSelector)
+	require.Nil(t, err)
+
+	r := fakeRepository{
+		charts: map[string]repo.ChartVersions{
+			"aad-pod-identity": {
+				{
+					Metadata: &chart.Metadata{
+						Version: "3.0.3",
+					},
+				},
+			},
+			"ingress-nginx": {
+				{
+					Metadata: &chart.Metadata{
+						Version: "3.35.0",
+					},
+				},
+			},
+		},
+	}
+	res, err := Update(fs, "/tmp/terraform/main.tf", r, nil)
+
+	require.Nil(t, err)
+	require.NotEmpty(t, res.Updated)
+	require.Empty(t, res.Ignored)
+
+	d, err := readFs(fs)
+	require.Nil(t, err)
+	require.Equal(t, helmSelectorExpected, d)
 }
 
 const basicTerraform = `
@@ -152,6 +185,7 @@ resource "helm_release" "aad_pod_identity" {
   version    = "3.0.3"
 }
 `
+
 const invalidChartTerraform = `
 resource "helm_release" "aad_pod_identity" {
   repository = "https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts"
@@ -178,5 +212,37 @@ resource "helm_release" "aad_pod_identity" {
   chart      = "aad-pod-identity"
   name       = "aad-pod-identity"
 	version    = "2.1.0"
+}
+`
+
+const helmSelector = `
+resource "helm_release" "aad_pod_identity" {
+  repository = "https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts"
+  chart      = "aad-pod-identity"
+  name       = "aad-pod-identity"
+  version    = "2.1.0"
+}
+
+resource "helm_release" "ingress_nginx" {
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  chart      = "ingress-nginx"
+  name       = "ingress-nginx"
+  version    = "3.35.0"
+}
+`
+
+const helmSelectorExpected = `
+resource "helm_release" "aad_pod_identity" {
+  repository = "https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts"
+  chart      = "aad-pod-identity"
+  name       = "aad-pod-identity"
+  version    = "3.0.3"
+}
+
+resource "helm_release" "ingress_nginx" {
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  chart      = "ingress-nginx"
+  name       = "ingress-nginx"
+  version    = "3.35.0"
 }
 `

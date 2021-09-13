@@ -14,7 +14,7 @@ import (
 	"github.com/xenitab/tf-provider-latest/internal/result"
 )
 
-func Update(fs afero.Fs, path string, r Registry) (*result.Result, error) {
+func Update(fs afero.Fs, path string, r Registry, providerSelector *[]string) (*result.Result, error) {
 	// Parse the file contents
 	file, err := fs.Open(path)
 	if err != nil {
@@ -38,9 +38,23 @@ func Update(fs afero.Fs, path string, r Registry) (*result.Result, error) {
 		return nil, err
 	}
 
+	selector := map[string]string{}
+	if providerSelector != nil {
+		for _, s := range *providerSelector {
+			selector[s] = s
+		}
+	}
+
 	// Loop all of the providers
 	res := result.NewResult("Provider")
 	for _, p := range pp {
+		// Check if provider is in selection list
+		if _, ok := selector[p.source]; providerSelector != nil && !ok {
+			res.Ignored = append(res.Ignored, &result.Ignore{Name: p.source, Path: path})
+			continue
+		}
+
+		// Check if provider is annotated with skip
 		if annotation.ShouldSkipBlock(aa, p.blockRange) {
 			res.Ignored = append(res.Ignored, &result.Ignore{Name: p.source, Path: path})
 			continue

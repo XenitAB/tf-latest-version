@@ -14,7 +14,7 @@ import (
 
 const TerraformExtension = ".tf"
 
-func Update(fs afero.Fs, path string) (string, error) {
+func Update(fs afero.Fs, path string, providerSelector *[]string, helmSelector *[]string) (string, error) {
 	resMap := map[string]*result.Result{}
 
 	err := afero.Walk(fs, path, func(path string, info iofs.FileInfo, err error) error {
@@ -28,12 +28,12 @@ func Update(fs afero.Fs, path string) (string, error) {
 			return nil
 		}
 
-		helmResult, err := helm.Update(fs, path, helm.NewHelmRepository())
+		helmResult, err := helm.Update(fs, path, helm.NewHelmRepository(), helmSelector)
 		if err != nil {
 			return err
 		}
 		resMap = merge(resMap, helmResult)
-		providerResult, err := provider.Update(fs, path, provider.NewHashicorpRegistry())
+		providerResult, err := provider.Update(fs, path, provider.NewHashicorpRegistry(), providerSelector)
 		if err != nil {
 			return err
 		}

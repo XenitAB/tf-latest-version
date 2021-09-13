@@ -4,9 +4,10 @@ Tool to make sure the latest `required_providers` and `helm_releases` are used.
 
 
 ## How To
-To update all provider and helm versions in the current directory and its sup directories.
+
+To update all provider and helm versions in the current directory and its sub directories.
 ```sh
-tf-latest-version .
+tf-latest-version --path .
 ```
 
 Versions can be ignored, causing the updater to skip them, by adding a comment before the resource.

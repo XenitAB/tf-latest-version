@@ -14,7 +14,7 @@ import (
 	"github.com/xenitab/tf-provider-latest/internal/result"
 )
 
-func Update(fs afero.Fs, path string, r Repository) (*result.Result, error) {
+func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*result.Result, error) {
 	// Read HCL file
 	d, err := afero.ReadFile(fs, path)
 	if err != nil {
@@ -37,6 +37,13 @@ func Update(fs afero.Fs, path string, r Repository) (*result.Result, error) {
 		return nil, err
 	}
 
+	selector := map[string]string{}
+	if helmSelector != nil {
+		for _, s := range *helmSelector {
+			selector[s] = s
+		}
+	}
+
 	// Iterate all of the helm releases
 	res := result.NewResult("Helm")
 	for _, h := range hh {
@@ -45,6 +52,13 @@ func Update(fs afero.Fs, path string, r Repository) (*result.Result, error) {
 			continue
 		}
 
+		// Check if provider is in selection list
+		if _, ok := selector[h.chart]; helmSelector != nil && !ok {
+			res.Ignored = append(res.Ignored, &result.Ignore{Name: h.chart, Path: path})
+			continue
+		}
+
+		// Check if provider is annotated with skip
 		if annotation.ShouldSkipBlock(annos, h.blockRange) {
 			res.Ignored = append(res.Ignored, &result.Ignore{Name: h.chart, Path: path})
 			continue
