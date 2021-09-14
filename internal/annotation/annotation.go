@@ -17,10 +17,10 @@ type Annotation struct {
 	Token   hclsyntax.Token
 }
 
-func ParseAnnotations(hclString string) ([]*Annotation, error) {
+func ParseAnnotations(b []byte) ([]*Annotation, error) {
 	aa := []*Annotation{}
 
-	tokens, diags := hclsyntax.LexConfig([]byte(hclString), "main.hcl", hcl.InitialPos)
+	tokens, diags := hclsyntax.LexConfig(b, "main.hcl", hcl.InitialPos)
 	if diags.HasErrors() {
 		return []*Annotation{}, errors.New(diags.Error())
 	}

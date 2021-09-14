@@ -2,51 +2,45 @@ package provider
 
 import (
 	"errors"
-	"io/ioutil"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/minamijoyo/tfupdate/tfupdate"
 	"github.com/spf13/afero"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/xenitab/tf-provider-latest/internal/annotation"
 	"github.com/xenitab/tf-provider-latest/internal/result"
+	"github.com/xenitab/tf-provider-latest/internal/util"
 )
 
-func Update(fs afero.Fs, path string, r Registry) (*result.Result, error) {
-	// Parse the file contents
-	file, err := fs.Open(path)
+func Update(fs afero.Fs, path string, reg Registry, providerSelector *[]string) (*result.Result, error) {
+	hclFile, _, annos, err := util.ReadHCLFile(fs, path)
 	if err != nil {
 		return nil, err
-	}
-	d, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-	file.Close()
-	hclFile, diags := hclsyntax.ParseConfig(d, path, hcl.InitialPos)
-	if diags.HasErrors() {
-		return nil, errors.New(diags.Error())
 	}
 	pp, err := parseRequiredProviders(hclFile)
 	if err != nil {
 		return nil, err
 	}
-	aa, err := annotation.ParseAnnotations(string(d))
-	if err != nil {
-		return nil, err
-	}
 
-	// Loop all of the providers
+	selector := map[string]string{}
+	if providerSelector != nil {
+		for _, s := range *providerSelector {
+			selector[s] = s
+		}
+	}
 	res := result.NewResult("Provider")
 	for _, p := range pp {
-		if annotation.ShouldSkipBlock(aa, p.blockRange) {
+		if _, ok := selector[p.source]; providerSelector != nil && !ok {
+			res.Ignored = append(res.Ignored, &result.Ignore{Name: p.source, Path: path})
+			continue
+		}
+		if annotation.ShouldSkipBlock(annos, p.blockRange) {
 			res.Ignored = append(res.Ignored, &result.Ignore{Name: p.source, Path: path})
 			continue
 		}
 
-		latestVersion, err := r.getLatestVersion(p.source)
+		latestVersion, err := reg.getLatestVersion(p.source)
 		if err != nil {
 			return nil, err
 		}
