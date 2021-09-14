@@ -25,10 +25,10 @@ func main() {
 		fmt.Println("path flag must be set")
 		os.Exit(1)
 	}
-	if flag.Lookup("provider-selector").Changed == false {
+	if !flag.Lookup("provider-selector").Changed {
 		providerSelector = nil
 	}
-	if flag.Lookup("helm-selector").Changed == false {
+	if !flag.Lookup("helm-selector").Changed {
 		helmSelector = nil
 	}
 

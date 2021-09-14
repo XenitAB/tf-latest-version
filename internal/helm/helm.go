@@ -5,30 +5,16 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/spf13/afero"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/xenitab/tf-provider-latest/internal/annotation"
 	"github.com/xenitab/tf-provider-latest/internal/result"
+	"github.com/xenitab/tf-provider-latest/internal/util"
 )
 
 func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*result.Result, error) {
-	// Read HCL file
-	d, err := afero.ReadFile(fs, path)
-	if err != nil {
-		return nil, err
-	}
-	hclWriteFile, diags := hclwrite.ParseConfig(d, "main.hcl", hcl.InitialPos)
-	if diags.HasErrors() {
-		return nil, errors.New(diags.Error())
-	}
-	hclFile, diags := hclsyntax.ParseConfig(d, path, hcl.InitialPos)
-	if diags.HasErrors() {
-		return nil, errors.New(diags.Error())
-	}
-	annos, err := annotation.ParseAnnotations(string(d))
+	hclFile, hclWriteFile, annos, err := util.ReadHCLFile(fs, path)
 	if err != nil {
 		return nil, err
 	}
@@ -43,22 +29,17 @@ func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*re
 			selector[s] = s
 		}
 	}
-
-	// Iterate all of the helm releases
 	res := result.NewResult("Helm")
 	for _, h := range hh {
-		// Skip if the repository is not set
+		// Skip if the repository is not set as it mean the chart is local
 		if h.repository == "" {
 			continue
 		}
 
-		// Check if provider is in selection list
 		if _, ok := selector[h.chart]; helmSelector != nil && !ok {
 			res.Ignored = append(res.Ignored, &result.Ignore{Name: h.chart, Path: path})
 			continue
 		}
-
-		// Check if provider is annotated with skip
 		if annotation.ShouldSkipBlock(annos, h.blockRange) {
 			res.Ignored = append(res.Ignored, &result.Ignore{Name: h.chart, Path: path})
 			continue
@@ -76,26 +57,18 @@ func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*re
 		if block == nil {
 			return nil, errors.New("block cannot be nil")
 		}
-
 		block.Body().SetAttributeValue("version", cty.StringVal(latestVersion))
-		res.Updated = append(res.Updated, &result.Update{Name: h.chart, OldVersion: h.version, NewVersion: latestVersion})
+		res.Updated = append(res.Updated, &result.Update{
+			Name:       h.chart,
+			OldVersion: h.version,
+			NewVersion: latestVersion,
+		})
 	}
 
-	// Clear the old file and write the new content
-	err = fs.Remove(path)
+	err = util.ReplaceHCLFile(fs, path, hclWriteFile)
 	if err != nil {
 		return nil, err
 	}
-	file, err := fs.Create(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	_, err = hclWriteFile.WriteTo(file)
-	if err != nil {
-		return nil, err
-	}
-
 	return res, nil
 }
 
