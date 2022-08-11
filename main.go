@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 
@@ -13,7 +13,7 @@ import (
 
 func main() {
 	// Disable Terraform logs
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	// Parse flags
 	path := flag.String("path", "", "path where directory recursion should start")
