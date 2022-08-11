@@ -11,7 +11,7 @@ import (
 	"github.com/xenitab/tf-provider-latest/internal/annotation"
 )
 
-// nolint:gocritic // skip as it just makes things more verbose
+//nolint:gocritic // skip as it just makes things more verbose
 func ReadHCLFile(fs afero.Fs, path string) (*hcl.File, *hclwrite.File, []*annotation.Annotation, error) {
 	b, err := afero.ReadFile(fs, path)
 	if err != nil {
