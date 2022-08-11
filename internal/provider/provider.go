@@ -2,6 +2,7 @@ package provider
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/minamijoyo/tfupdate/tfupdate"
@@ -16,11 +17,11 @@ import (
 func Update(fs afero.Fs, path string, reg Registry, providerSelector *[]string) (*result.Result, error) {
 	hclFile, _, annos, err := util.ReadHCLFile(fs, path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to read providers for %s: %w", path, err)
 	}
 	pp, err := parseRequiredProviders(hclFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to parse required providers for %s: %w", path, err)
 	}
 
 	selector := map[string]string{}
@@ -42,7 +43,7 @@ func Update(fs afero.Fs, path string, reg Registry, providerSelector *[]string) 
 
 		latestVersion, err := reg.getLatestVersion(p.source)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to get latest version of provider %s - %s: %w", path, p.source, err)
 		}
 		if latestVersion == p.version {
 			continue
@@ -50,11 +51,11 @@ func Update(fs afero.Fs, path string, reg Registry, providerSelector *[]string) 
 
 		o, err := tfupdate.NewOption("provider", p.name, latestVersion, false, []string{})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to get new option of provider %s - %s: %w", path, p.source, err)
 		}
 		err = tfupdate.UpdateFileOrDir(fs, path, o)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to get update file or dir of provider %s - %s: %w", path, p.source, err)
 		}
 		res.Updated = append(res.Updated, &result.Update{Name: p.source, OldVersion: p.version, NewVersion: latestVersion})
 	}
