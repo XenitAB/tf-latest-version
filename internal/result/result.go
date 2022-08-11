@@ -17,10 +17,17 @@ type Ignore struct {
 	Path string
 }
 
+type Failure struct {
+	Name    string
+	Path    string
+	Message string
+}
+
 type Result struct {
 	Title   string
 	Ignored []*Ignore
 	Updated []*Update
+	Failed  []*Failure
 }
 
 func NewResult(title string) *Result {
@@ -28,6 +35,7 @@ func NewResult(title string) *Result {
 		Title:   title,
 		Ignored: []*Ignore{},
 		Updated: []*Update{},
+		Failed:  []*Failure{},
 	}
 }
 
@@ -60,12 +68,26 @@ func filterUnique(res *Result) *Result {
 	}
 	res.Ignored = ignored
 
+	existingFailed := map[string]string{}
+	failed := []*Failure{}
+	for _, u := range res.Failed {
+		v, ok := existingFailed[u.Name]
+		// result already in list
+		if ok && v == u.Path {
+			continue
+		}
+
+		existingFailed[u.Name] = u.Path
+		failed = append(failed, u)
+	}
+	res.Failed = failed
+
 	return res
 }
 
 func (r *Result) ToMarkdown() (string, error) {
 	res := filterUnique(r)
-	if len(res.Updated) == 0 && len(res.Ignored) == 0 {
+	if len(res.Updated) == 0 && len(res.Ignored) == 0 && len(res.Failed) == 0 {
 		return fmt.Sprintf("# %s\nNo Changes.", r.Title), nil
 	}
 
@@ -99,6 +121,15 @@ const mdTemplate = `# {{ .Title }}
 | --- | --- |
 {{- range .Ignored }}
 | {{ .Name }} | {{ .Path }} |
+{{- end -}}
+{{- end -}}
+
+{{- if .Failed }}
+## Failed
+| Name | Path | Message |
+| --- | --- | --- |
+{{- range .Failed }}
+| {{ .Name }} | {{ .Path }} | {{ .Message }} |
 {{- end -}}
 {{- end -}}
 `

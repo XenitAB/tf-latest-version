@@ -88,9 +88,9 @@ func TestInvalidChart(t *testing.T) {
 			},
 		},
 	}
-	_, err = Update(fs, "/tmp/terraform/main.tf", r, nil)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "could not find chart entry")
+	res, err := Update(fs, "/tmp/terraform/main.tf", r, nil)
+	require.NoError(t, err)
+	require.Contains(t, res.Failed[0].Message, "could not find chart entry")
 }
 
 func TestIgnoreChart(t *testing.T) {

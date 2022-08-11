@@ -92,7 +92,21 @@ func TestProviderIgnore(t *testing.T) {
 	res, err := Update(fs, "/tmp/terraform/main.tf", r, nil)
 	require.Nil(t, err)
 	require.Empty(t, res.Updated)
+	require.Empty(t, res.Failed)
 	require.NotEmpty(t, res.Ignored)
+}
+
+func TestProviderFail(t *testing.T) {
+	fs, err := createFs(failTerraform)
+	require.Nil(t, err)
+	r := FakeRegistry{
+		providers: map[string][]string{},
+	}
+	res, err := Update(fs, "/tmp/terraform/main.tf", r, nil)
+	require.Nil(t, err)
+	require.Empty(t, res.Updated)
+	require.Empty(t, res.Ignored)
+	require.NotEmpty(t, res.Failed)
 }
 
 func TestProviderFalsePositive(t *testing.T) {
@@ -107,6 +121,7 @@ func TestProviderFalsePositive(t *testing.T) {
 	require.Nil(t, err)
 	require.NotEmpty(t, res.Updated)
 	require.Empty(t, res.Ignored)
+	require.Empty(t, res.Failed)
 }
 
 func TestProviderSelector(t *testing.T) {
@@ -212,6 +227,21 @@ terraform {
     azurerm = {
       source  = "hashicorp/azurerm"
 			version = "2.36.0"
+    }
+  }
+}
+
+provider "azurerm" {}
+`
+
+const failTerraform = `
+terraform {
+  required_version = "0.13.5"
+
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "2.36.0"
     }
   }
 }

@@ -47,7 +47,12 @@ func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*re
 
 		latestVersion, err := r.getLatestVersion(h.repository, h.chart)
 		if err != nil {
-			return nil, err
+			res.Failed = append(res.Failed, &result.Failure{
+				Name:    h.chart,
+				Path:    path,
+				Message: err.Error(),
+			})
+			continue
 		}
 		if h.version == latestVersion {
 			continue
@@ -55,7 +60,12 @@ func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*re
 
 		block := hclWriteFile.Body().FirstMatchingBlock("resource", []string{"helm_release", h.name})
 		if block == nil {
-			return nil, errors.New("block cannot be nil")
+			res.Failed = append(res.Failed, &result.Failure{
+				Name:    h.chart,
+				Path:    path,
+				Message: "block cannot be nil",
+			})
+			continue
 		}
 		block.Body().SetAttributeValue("version", cty.StringVal(latestVersion))
 		res.Updated = append(res.Updated, &result.Update{

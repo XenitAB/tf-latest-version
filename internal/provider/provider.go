@@ -42,7 +42,12 @@ func Update(fs afero.Fs, path string, reg Registry, providerSelector *[]string) 
 
 		latestVersion, err := reg.getLatestVersion(p.source)
 		if err != nil {
-			return nil, err
+			res.Failed = append(res.Failed, &result.Failure{
+				Name:    p.source,
+				Path:    path,
+				Message: err.Error(),
+			})
+			continue
 		}
 		if latestVersion == p.version {
 			continue
@@ -50,11 +55,21 @@ func Update(fs afero.Fs, path string, reg Registry, providerSelector *[]string) 
 
 		o, err := tfupdate.NewOption("provider", p.name, latestVersion, false, []string{})
 		if err != nil {
-			return nil, err
+			res.Failed = append(res.Failed, &result.Failure{
+				Name:    p.source,
+				Path:    path,
+				Message: err.Error(),
+			})
+			continue
 		}
 		err = tfupdate.UpdateFileOrDir(fs, path, o)
 		if err != nil {
-			return nil, err
+			res.Failed = append(res.Failed, &result.Failure{
+				Name:    p.source,
+				Path:    path,
+				Message: err.Error(),
+			})
+			continue
 		}
 		res.Updated = append(res.Updated, &result.Update{Name: p.source, OldVersion: p.version, NewVersion: latestVersion})
 	}

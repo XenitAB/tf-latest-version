@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBoth(t *testing.T) {
+func TestAll(t *testing.T) {
 	res := Result{
 		Title: "test",
 		Updated: []*Update{
@@ -22,11 +22,18 @@ func TestBoth(t *testing.T) {
 				Path: "baz",
 			},
 		},
+		Failed: []*Failure{
+			{
+				Name:    "foo",
+				Path:    "bar",
+				Message: "baz",
+			},
+		},
 	}
 
 	md, err := res.ToMarkdown()
 	assert.NoError(t, err)
-	assert.Equal(t, bothResult, md)
+	assert.Equal(t, allResult, md)
 }
 
 func TestUpdated(t *testing.T) {
@@ -50,6 +57,7 @@ func TestUpdated(t *testing.T) {
 			},
 		},
 		Ignored: []*Ignore{},
+		Failed:  []*Failure{},
 	}
 
 	md, err := res.ToMarkdown()
@@ -71,6 +79,7 @@ func TestIgnored(t *testing.T) {
 				Path: "baz",
 			},
 		},
+		Failed: []*Failure{},
 	}
 
 	md, err := res.ToMarkdown()
@@ -78,11 +87,36 @@ func TestIgnored(t *testing.T) {
 	assert.Equal(t, ignoredResult, md)
 }
 
+func TestFailed(t *testing.T) {
+	res := Result{
+		Title:   "test",
+		Updated: []*Update{},
+		Ignored: []*Ignore{},
+		Failed: []*Failure{
+			{
+				Name:    "foo",
+				Path:    "bar",
+				Message: "baz",
+			},
+			{
+				Name:    "foo",
+				Path:    "bar",
+				Message: "baz",
+			},
+		},
+	}
+
+	md, err := res.ToMarkdown()
+	assert.NoError(t, err)
+	assert.Equal(t, failedResult, md)
+}
+
 func TestNone(t *testing.T) {
 	res := Result{
 		Title:   "test",
 		Updated: []*Update{},
 		Ignored: []*Ignore{},
+		Failed:  []*Failure{},
 	}
 
 	md, err := res.ToMarkdown()
@@ -90,7 +124,7 @@ func TestNone(t *testing.T) {
 	assert.Equal(t, noneResult, md)
 }
 
-const bothResult = `# test
+const allResult = `# test
 ## Updated
 | Name | Old Version | New Version |
 | --- | --- | --- |
@@ -98,7 +132,11 @@ const bothResult = `# test
 ## Ignored
 | Name | Path |
 | --- | --- |
-| bar | baz |`
+| bar | baz |
+## Failed
+| Name | Path | Message |
+| --- | --- | --- |
+| foo | bar | baz |`
 
 const updatedResult = `# test
 ## Updated
@@ -112,6 +150,12 @@ const ignoredResult = `# test
 | Name | Path |
 | --- | --- |
 | bar | baz |`
+
+const failedResult = `# test
+## Failed
+| Name | Path | Message |
+| --- | --- | --- |
+| foo | bar | baz |`
 
 const noneResult = `# test
 No Changes.`
