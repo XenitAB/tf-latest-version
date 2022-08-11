@@ -1,7 +1,7 @@
 package helm
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
@@ -38,7 +38,7 @@ func readFs(fs afero.Fs) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	d, err := ioutil.ReadAll(file)
+	d, err := io.ReadAll(file)
 	if err != nil {
 		return "", err
 	}

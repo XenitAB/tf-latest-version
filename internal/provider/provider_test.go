@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
@@ -64,7 +64,7 @@ func TestProviderUpdate(t *testing.T) {
 
 			file, err := fs.Open("/tmp/terraform/main.tf")
 			require.Nil(t, err)
-			d, err := ioutil.ReadAll(file)
+			d, err := io.ReadAll(file)
 			require.Nil(t, err)
 			require.Equal(t, tt.expected, string(d))
 		})
@@ -127,7 +127,7 @@ func TestProviderSelector(t *testing.T) {
 
 	file, err := fs.Open("/tmp/terraform/main.tf")
 	require.Nil(t, err)
-	d, err := ioutil.ReadAll(file)
+	d, err := io.ReadAll(file)
 	require.Nil(t, err)
 	require.Equal(t, providerSelectorExpected, string(d))
 }
