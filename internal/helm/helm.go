@@ -2,6 +2,7 @@ package helm
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -16,11 +17,11 @@ import (
 func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*result.Result, error) {
 	hclFile, hclWriteFile, annos, err := util.ReadHCLFile(fs, path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to read helm releases for %s: %w", path, err)
 	}
 	hh, err := parseHelmReleases(hclFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to parse helm releases for %s: %w", path, err)
 	}
 
 	selector := map[string]string{}
@@ -47,7 +48,7 @@ func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*re
 
 		latestVersion, err := r.getLatestVersion(h.repository, h.chart)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to get latest version of helm release %s - %s: %w", path, h.chart, err)
 		}
 		if h.version == latestVersion {
 			continue
@@ -55,7 +56,7 @@ func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*re
 
 		block := hclWriteFile.Body().FirstMatchingBlock("resource", []string{"helm_release", h.name})
 		if block == nil {
-			return nil, errors.New("block cannot be nil")
+			return nil, fmt.Errorf("block cannot be nil for helm chart %s - %s: %w", path, h.chart, err)
 		}
 		block.Body().SetAttributeValue("version", cty.StringVal(latestVersion))
 		res.Updated = append(res.Updated, &result.Update{
@@ -67,7 +68,7 @@ func Update(fs afero.Fs, path string, r Repository, helmSelector *[]string) (*re
 
 	err = util.ReplaceHCLFile(fs, path, hclWriteFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to replace hcl file for helm releases for %s: %w", path, err)
 	}
 	return res, nil
 }
